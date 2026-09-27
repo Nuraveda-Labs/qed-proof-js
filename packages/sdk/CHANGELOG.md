@@ -4,7 +4,14 @@ All notable changes to `@qed-proof/sdk` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - Unreleased
+## [0.1.1] - Unreleased
+
+The first published version. 0.1.0 was tagged on the public repo but never published.
+
+### Fixed
+- `repository.directory` is now `packages/sdk` (it said `packages/packages`).
+
+## [0.1.0] - never published
 
 ### Added
 - `QedProof` client: `submitClaim`, `getClaim`, `waitForVerdict`, `listClaims`, `iterClaims`,

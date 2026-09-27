@@ -1,6 +1,6 @@
 {
   "name": "@qed-proof/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript SDK for QED Proof: submit claims, poll verdicts, and verify PoAW receipts offline. Runs on Node, Deno and browsers.",
   "license": "Apache-2.0",
   "type": "module",
@@ -62,6 +62,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nuraveda-Labs/qed-proof-js.git",
-    "directory": "packages/packages"
+    "directory": "packages/sdk"
   }
 }

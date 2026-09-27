@@ -1,11 +1,11 @@
 {
   "name": "@qed-proof/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "qed: submit claims, watch verdicts and verify PoAW receipts from the terminal.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "qed": "./dist/cli.cjs"
+    "qed": "dist/cli.cjs"
   },
   "main": "./dist/index.cjs",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,7 @@
     "lint": "true"
   },
   "dependencies": {
-    "@qed-proof/sdk": "0.1.0"
+    "@qed-proof/sdk": "0.1.1"
   },
   "devDependencies": {
     "@types/node": "^20.16.11",
@@ -44,6 +44,6 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Nuraveda-Labs/qed-proof-js.git",
-    "directory": "packages/packages"
+    "directory": "packages/cli"
   }
 }

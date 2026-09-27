@@ -1,21 +1,19 @@
 name: Release
 
-# Inert here: GitHub only reads workflows from the repository root, and this file lives under
-# oss/sdk-js/ inside the private monorepo. It becomes live once oss/sdk-js is exported to its own
-# public repo (qed-proof-js, per ADR-013). It does NOT run in this repo. Do not publish from here.
+# Publishes @qed-proof/sdk, then @qed-proof/cli (which pins that exact sdk version), on a sdk-js-v* tag, with npm
+# provenance over OIDC. Trusted publishing must be configured for both packages first.
 
 on:
   push:
     tags:
-      - "sdk-v*"
-      - "cli-v*"
+      - "sdk-js-v*"   # the tag the gated export writes (scripts/oss_export.py --package sdk-js)
 
 permissions:
   contents: read
 
 jobs:
   publish-sdk:
-    if: startsWith(github.ref, 'refs/tags/sdk-v')
+    environment: npm
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -32,7 +30,8 @@ jobs:
       - run: npm publish --provenance --access public --workspace packages/sdk
 
   publish-cli:
-    if: startsWith(github.ref, 'refs/tags/cli-v')
+    needs: publish-sdk
+    environment: npm
     runs-on: ubuntu-latest
     permissions:
       id-token: write

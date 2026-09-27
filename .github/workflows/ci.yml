@@ -1,23 +1,25 @@
 name: CI
 
+# Runs in this repository (the published @qed-proof/sdk + @qed-proof/cli tree), at its root.
 on:
   pull_request:
-    paths:
-      - "oss/sdk-js/**"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: oss/sdk-js
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-          cache-dependency-path: oss/sdk-js/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm run build   # sdk first, then cli (the cli imports the sdk's built types)
       - run: npm test
+      - run: node scripts/check-pack.mjs   # the manifest npm would publish keeps its bin + repository.directory

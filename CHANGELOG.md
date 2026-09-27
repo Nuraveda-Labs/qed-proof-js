@@ -6,5 +6,5 @@ All notable changes to this repository (both packages) are documented here. Form
 ## [Unreleased]
 
 ### Added
-- Initial `@qed-proof/sdk` and `@qed-proof/cli` packages (0.1.0), per `docs/lanes/sdk-clients.md`
+- Initial `@qed-proof/sdk` and `@qed-proof/cli` packages (0.1.1; 0.1.0 was tagged but never published), per `docs/lanes/sdk-clients.md`
   and ADR-013.
