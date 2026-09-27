@@ -1,0 +1,166 @@
+/**
+ * Reference checker for PoAW receipts (SPEC.md §10), ported from `oss/spec/tools/check.py` and
+ * `oss/spec/tools/anchor_check.py`. Offline it checks steps 1-4. With `rpcUrl` it also checks the
+ * anchor against the chain (§8.4). Any doubt gives a failing check, never a pass.
+ */
+import {
+  b64uDecode,
+  claimDigest,
+  hasFloatValue,
+  hasFloatText,
+  keyId,
+  leafHash,
+  rootFromInclusion,
+  verifySignature,
+  b64u,
+} from "./primitives.js";
+import { schemaValid } from "./schema.js";
+import { checkAnchor, type Keyset, type Proof } from "./anchor.js";
+
+export interface VerifyChecks {
+  spec_version: boolean;
+  schema: boolean;
+  integers_only: boolean;
+  key: boolean;
+  signature: boolean;
+  claim_digest: boolean;
+  inclusion: boolean | "absent";
+  anchor: boolean | "absent" | "not_checked_offline" | string;
+}
+
+export interface VerifyReport {
+  checks: VerifyChecks;
+  valid: boolean;
+  verdict: string | null;
+  achieved_trust_level: number;
+  proven_by?: number | null;
+}
+
+export interface VerifyOptions {
+  keys: Keyset;
+  rpcUrl?: string;
+}
+
+interface ReceiptLike {
+  body?: Record<string, unknown>;
+  signature?: { key_id?: string; value?: string };
+  proof?: Proof;
+  [key: string]: unknown;
+}
+
+/**
+ * Verify a PoAW receipt. `receipt` may be a parsed object or the raw JSON text — passing the raw
+ * text lets the integers-only check catch a float written as e.g. `1.0` (indistinguishable from
+ * the integer `1` after `JSON.parse`), matching Python's `json.loads` int/float distinction
+ * exactly; a non-integer value like `0.5` is caught either way.
+ */
+/**
+ * The JSON text each receipt object was parsed from, when the SDK fetched it (`QedProof.getReceipt`). JSON.parse turns
+ * `1.0` into `1`, which would hide a float SPEC §3 forbids, so verification reads the original text when it has it.
+ * That way a fetched receipt verifies exactly as it does in the Python SDK and the reference checker.
+ */
+export const RECEIPT_TEXT = new WeakMap<object, string>();
+
+export async function verifyReceipt(receipt: unknown | string, options: VerifyOptions): Promise<VerifyReport> {
+  const raw = typeof receipt === "string" ? receipt
+    : receipt && typeof receipt === "object" ? RECEIPT_TEXT.get(receipt as object) : undefined;
+  const parsed: ReceiptLike = typeof receipt === "string" ? JSON.parse(receipt) : ((receipt as ReceiptLike) ?? {});
+  const keyset = options.keys ?? {};
+
+  const checks = {} as VerifyChecks;
+
+  const body = (parsed && typeof parsed === "object" ? parsed.body : undefined) ?? {};
+  const version = String((body as Record<string, unknown>).spec_version ?? "");
+  const parts = version.split("/");
+  checks.spec_version = parts[0] === "poaw" && (parts[parts.length - 1] ?? "").split(".")[0] === "0";
+
+  checks.schema = schemaValid(parsed);
+
+  const integerFail = raw !== undefined ? hasFloatText(raw) : hasFloatValue(parsed);
+  checks.integers_only = !integerFail;
+
+  const sig = (parsed && typeof parsed === "object" ? parsed.signature : undefined) ?? ({} as ReceiptLike["signature"]);
+  const keys = keyset.keys ?? [];
+  const key = keys.find((k) => k.key_id === sig?.key_id);
+  const issued = String((body as Record<string, unknown>).issued_at ?? "");
+  const issuer = (body as Record<string, unknown>).issuer as { key_id?: string } | undefined;
+
+  let keyOk = false;
+  if (key && sig?.key_id === issuer?.key_id) {
+    try {
+      const computedKeyId = keyId(b64uDecode(key.public_key));
+      keyOk =
+        computedKeyId === key.key_id &&
+        key.valid_from <= issued &&
+        (key.revoked_at === null || key.revoked_at === undefined || issued < key.revoked_at);
+    } catch {
+      keyOk = false;
+    }
+  }
+  checks.key = keyOk;
+
+  let sigOk = false;
+  if (keyOk && key) {
+    try {
+      sigOk = verifySignature(b64uDecode(key.public_key), body, sig?.value ?? "");
+    } catch {
+      sigOk = false;
+    }
+  }
+  checks.signature = sigOk;
+
+  const claim = (body as Record<string, unknown>).claim;
+  checks.claim_digest =
+    Boolean(claim) &&
+    typeof claim === "object" &&
+    (claim as Record<string, unknown>).claim_digest === claimDigest(claim as Record<string, unknown>);
+
+  const proof = parsed && typeof parsed === "object" ? parsed.proof : undefined;
+  let provenBy: number | null | undefined;
+  if (!proof) {
+    checks.inclusion = "absent";
+  } else {
+    const root = rootFromInclusion(
+      proof.leaf_index,
+      proof.tree_size,
+      leafHash({ body: (parsed as ReceiptLike).body, signature: (parsed as ReceiptLike).signature }),
+      proof.inclusion.map((h) => b64uDecode(h)),
+    );
+    checks.inclusion = root !== null && b64u(root) === proof.root_hash;
+  }
+
+  if (!(proof && proof.anchor)) {
+    checks.anchor = "absent";
+  } else if (!options.rpcUrl) {
+    checks.anchor = "not_checked_offline";
+  } else {
+    const a = await checkAnchor(proof, keyset, options.rpcUrl);
+    checks.anchor = a.ok ? true : a.reason;
+    provenBy = a.proven_by;
+  }
+
+  const required: Array<keyof VerifyChecks> = [
+    "spec_version",
+    "schema",
+    "integers_only",
+    "key",
+    "signature",
+    "claim_digest",
+  ];
+  const valid = required.every((k) => checks[k] === true) && (checks.inclusion === true || checks.inclusion === "absent");
+
+  const achievedTrustLevel = valid ? (checks.inclusion === true && checks.anchor === true ? 2 : 1) : 0;
+  const verdictValue = (body as Record<string, unknown>).verdict as { value?: string } | undefined;
+  const verdict = valid ? (verdictValue?.value ?? null) : null;
+
+  const report: VerifyReport = {
+    checks,
+    valid,
+    verdict: verdict ?? null,
+    achieved_trust_level: achievedTrustLevel,
+  };
+  if (provenBy !== undefined) {
+    report.proven_by = provenBy;
+  }
+  return report;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "qed-proof-sdk-js",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @qed-proof/sdk && npm run build -w @qed-proof/cli",
+    "test": "npm run test -w @qed-proof/sdk && npm run test -w @qed-proof/cli",
+    "gen:types": "npm run gen:types --workspace packages/sdk",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

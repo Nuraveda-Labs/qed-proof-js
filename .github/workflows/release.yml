@@ -1,0 +1,49 @@
+name: Release
+
+# Inert here: GitHub only reads workflows from the repository root, and this file lives under
+# oss/sdk-js/ inside the private monorepo. It becomes live once oss/sdk-js is exported to its own
+# public repo (qed-proof-js, per ADR-013). It does NOT run in this repo. Do not publish from here.
+
+on:
+  push:
+    tags:
+      - "sdk-v*"
+      - "cli-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish-sdk:
+    if: startsWith(github.ref, 'refs/tags/sdk-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build --workspace packages/sdk
+      - run: npm test --workspace packages/sdk
+      - run: npm publish --provenance --access public --workspace packages/sdk
+
+  publish-cli:
+    if: startsWith(github.ref, 'refs/tags/cli-v')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build  # sdk first, then cli: the cli imports the sdk's built types
+      - run: npm test --workspace packages/cli
+      - run: npm publish --provenance --access public --workspace packages/cli
