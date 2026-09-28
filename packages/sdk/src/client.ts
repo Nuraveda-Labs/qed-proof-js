@@ -81,10 +81,13 @@ export class QedProof {
   constructor(options: QedProofOptions = {}) {
     this.apiKey = options.apiKey;
     this.baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    this.fetchImpl = options.fetch ?? globalThis.fetch;
-    if (!this.fetchImpl) {
+    const f = options.fetch ?? globalThis.fetch;
+    if (!f) {
       throw new Error("QedProof: no fetch implementation available; pass { fetch } explicitly");
     }
+    // Call fetch as a plain function, never as a method of this client: browsers throw "Illegal invocation" when
+    // fetch's `this` isn't the window (Node doesn't care, so 0.1.0-0.1.3 worked in Node and failed in every browser).
+    this.fetchImpl = (input, init) => f(input, init);
   }
 
   private async request(

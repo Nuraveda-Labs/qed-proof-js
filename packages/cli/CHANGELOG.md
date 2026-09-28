@@ -4,6 +4,11 @@ All notable changes to `@qed-proof/cli` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - Unreleased
+
+### Fixed
+- Depends on `@qed-proof/sdk` 0.1.4. No CLI behaviour change.
+
 ## [0.1.3] - Unreleased
 
 Same code as 0.1.2. 0.1.2 was tagged but never published: the release job's npm was too old for trusted publishing.

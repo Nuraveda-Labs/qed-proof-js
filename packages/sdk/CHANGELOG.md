@@ -4,6 +4,11 @@ All notable changes to `@qed-proof/sdk` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] - Unreleased
+
+### Fixed
+- Works in browsers: `QedProof` now calls `fetch` as a plain function. 0.1.0–0.1.3 called it as a method of the client, which browsers reject with "Illegal invocation" (Node accepts it).
+
 ## [0.1.3] - Unreleased
 
 Same code as 0.1.2. 0.1.2 was tagged but never published: the release job's npm was too old for trusted publishing.
