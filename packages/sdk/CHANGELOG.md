@@ -4,7 +4,11 @@ All notable changes to `@qed-proof/sdk` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.2] - Unreleased
+## [0.1.3] - Unreleased
+
+Same code as 0.1.2. 0.1.2 was tagged but never published: the release job's npm was too old for trusted publishing.
+
+## [0.1.2] - never published
 
 ### Fixed
 - Works under a strict Content-Security-Policy (no `'unsafe-eval'`). The receipt schema is now precompiled at build time (ajv standalone), so importing the SDK no longer generates code with `new Function`; 0.1.1 threw at import in such pages. `ajv` and `ajv-formats` are no longer runtime dependencies.
