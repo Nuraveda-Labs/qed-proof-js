@@ -46,6 +46,12 @@ for (const ws of workspaces) {
     rmSync(out, { recursive: true, force: true });
   }
 }
+// The SDK must run under a strict CSP (no 'unsafe-eval'): its built output may never evaluate strings as code. 0.1.1
+// compiled its schema with ajv at import time, which broke the public receipt page (2026-09-28).
+for (const f of ["packages/sdk/dist/index.js", "packages/sdk/dist/index.cjs"]) {
+  const src = readFileSync(f, "utf8");
+  if (/new Function|\bFunction\(|\beval\(/.test(src)) fail(`${f} evaluates code at runtime (breaks under a strict CSP)`);
+}
 // The cli pins the exact sdk it was built and tested against; a version bump that misses the pin ships a mismatch.
 const sdkVersion = JSON.parse(readFileSync("packages/sdk/package.json", "utf8")).version;
 const cliPin = JSON.parse(readFileSync("packages/cli/package.json", "utf8")).dependencies?.["@qed-proof/sdk"];

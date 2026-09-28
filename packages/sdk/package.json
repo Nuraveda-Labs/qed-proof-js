@@ -1,6 +1,6 @@
 {
   "name": "@qed-proof/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeScript SDK for QED Proof: submit claims, poll verdicts, and verify PoAW receipts offline. Runs on Node, Deno and browsers.",
   "license": "Apache-2.0",
   "type": "module",
@@ -30,24 +30,25 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "npm run copy:schema && tsup",
+    "build": "npm run copy:schema && npm run build:validator && tsup",
     "copy:schema": "node scripts/copy-schema.mjs",
     "gen:types": "node scripts/gen-types.mjs",
     "test": "vitest run",
-    "lint": "true"
+    "lint": "true",
+    "build:validator": "node scripts/build-validator.mjs",
+    "check:validator": "node scripts/build-validator.mjs --check"
   },
   "dependencies": {
     "@noble/curves": "^1.6.0",
     "@noble/hashes": "^1.5.0",
-    "canonicalize": "^2.0.0",
-    "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1"
+    "canonicalize": "^2.0.0"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.2",
     "tsup": "^8.3.0",
     "typescript": "^5.6.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "ajv": "^8.17.1"
   },
   "publishConfig": {
     "access": "public"

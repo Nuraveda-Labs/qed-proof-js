@@ -1,14 +1,11 @@
 /**
  * Structural validation against the vendored receipt schema (Draft 2020-12), matching
  * `oss/spec/tools/check.py`'s use of `jsonschema.Draft202012Validator`.
+ *
+ * The validator is precompiled at build time (scripts/build-validator.mjs, ajv "standalone"), so nothing is compiled
+ * at runtime: no `new Function`, and so it works under a strict Content-Security-Policy without 'unsafe-eval'.
  */
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
-import { receiptSchema } from "./generated/receipt-schema.js";
-
-const ajv = new Ajv2020({ allErrors: false, strict: false });
-addFormats(ajv);
-const validate = ajv.compile(receiptSchema);
+import { validate } from "./generated/receipt-validator.js";
 
 export function schemaValid(receipt: unknown): boolean {
   return Boolean(validate(receipt));

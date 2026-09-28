@@ -22,4 +22,5 @@ jobs:
       - run: npm ci
       - run: npm run build   # sdk first, then cli (the cli imports the sdk's built types)
       - run: npm test
+      - run: node packages/sdk/scripts/build-validator.mjs --check   # the precompiled validator matches the schema
       - run: node scripts/check-pack.mjs   # the manifest npm would publish keeps its bin + repository.directory
