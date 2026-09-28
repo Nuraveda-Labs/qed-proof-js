@@ -165,8 +165,9 @@ export class QedProof {
     const timeoutMs = options.timeoutMs ?? 120_000;
     const pollIntervalMs = options.pollIntervalMs ?? 2_000;
     const deadline = Date.now() + timeoutMs;
+    let interval = pollIntervalMs;
     for (;;) {
-      let wait = pollIntervalMs;
+      let wait = interval;
       try {
         const status = await this.getClaim(claimId);
         if (status.state === "decided") return status;
@@ -181,6 +182,7 @@ export class QedProof {
         throw new QedProofError(408, `timed out after ${timeoutMs}ms waiting for claim ${claimId} to decide`);
       }
       await sleep(Math.min(wait, Math.max(0, deadline - Date.now())));
+      interval = Math.min(interval * 2, 30_000);
     }
   }
 
@@ -240,7 +242,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 function cryptoRandomId(): string {
-  const g = globalThis as { crypto?: { randomUUID?: () => string } };
+  const g = globalThis as {
+    crypto?: {
+      randomUUID?: () => string;
+      getRandomValues?: <T extends ArrayBufferView | null>(array: T) => T;
+    };
+  };
   if (g.crypto?.randomUUID) return g.crypto.randomUUID();
+  if (g.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    g.crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `claim-${Date.now()}-${hex}`;
+  }
   return `claim-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

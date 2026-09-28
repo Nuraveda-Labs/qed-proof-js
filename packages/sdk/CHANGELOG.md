@@ -4,6 +4,12 @@ All notable changes to `@qed-proof/sdk` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.5] - Unreleased
+
+### Changed
+- `waitForVerdict` backs off exponentially (x2 per poll, capped at 30 s), matching the Python SDK. It still never sleeps past `timeoutMs` and still honours `Retry-After`.
+- A generated `client_claim_id` uses `crypto.getRandomValues` when `crypto.randomUUID` is unavailable, before falling back to `Math.random`.
+
 ## [0.1.4] - Unreleased
 
 ### Fixed
