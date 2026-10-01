@@ -4,7 +4,14 @@ All notable changes to `@qed-proof/cli` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.5] - Unreleased
+## [0.1.6] - 2026-10-01
+
+### Changed
+
+- The source repository moved to `github.com/Nuraveda/qed-proof-js` (the old URL redirects). The
+  package's `repository` field and provenance now point there. No code changes.
+
+## [0.1.5] - 2026-09-28
 
 ### Changed
 - Depends on `@qed-proof/sdk` 0.1.5. No CLI behaviour change.
