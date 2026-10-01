@@ -10,6 +10,8 @@ import canonicalizeJcs from "canonicalize";
 
 export const SPEC_VERSION = "poaw/0.1";
 export const SIG_DOMAIN = new TextEncoder().encode("POAW-RECEIPT-V0\n");
+/** §5.1: a change entry is signed under its own domain, so it can never verify as a receipt. */
+export const CHANGE_SIG_DOMAIN = new TextEncoder().encode("POAW-CHANGE-V0\n");
 
 // --- encoding (§3) -----------------------------------------------------------------------------
 
@@ -125,14 +127,31 @@ export function keyId(pkRaw: Uint8Array): string {
   return "ed25519:" + b64u(sha256(pkRaw));
 }
 
-export function verifySignature(pkRaw: Uint8Array, body: unknown, sigValue: string): boolean {
+export function verifySignature(
+  pkRaw: Uint8Array,
+  body: unknown,
+  sigValue: string,
+  domain: Uint8Array = SIG_DOMAIN,
+): boolean {
   try {
     const sig = b64uDecode(sigValue);
-    const message = concatBytes(SIG_DOMAIN, jcs(body));
+    const message = concatBytes(domain, jcs(body));
     return ed25519.verify(sig, message, pkRaw);
   } catch {
     return false;
   }
+}
+
+/** A body without `entry_kind` is a receipt (undefined). `"change"` is a change entry. Anything else is unknown. */
+export function entryKind(body: unknown): unknown {
+  return body !== null && typeof body === "object" && !Array.isArray(body)
+    ? (body as Record<string, unknown>).entry_kind
+    : undefined;
+}
+
+/** SPEC §15.2: base64url(SHA-256(JCS(pipeline document))), the same construction as claim_digest. */
+export function pipelineDigest(pipeline: unknown): string {
+  return b64u(sha256(jcs(pipeline)));
 }
 
 export function claimDigest(claim: Record<string, unknown>): string {

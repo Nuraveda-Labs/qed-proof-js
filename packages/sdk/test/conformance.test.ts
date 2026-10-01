@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { pipelineDigest } from "../src/primitives.js";
 import { verifyReceipt } from "../src/verify.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -15,16 +16,53 @@ const vectorsDir = join(here, "..", "..", "..", "test", "vectors");
 
 const manifest = JSON.parse(readFileSync(join(vectorsDir, "manifest.json"), "utf-8")) as {
   keyset: string;
-  vectors: Array<{ description: string; expected: Record<string, unknown>; file: string }>;
+  vectors: Array<{ description: string; expected: Record<string, unknown>; file: string; pipeline?: string }>;
 };
 const keys = JSON.parse(readFileSync(join(vectorsDir, manifest.keyset), "utf-8"));
 
-describe("conformance vectors (poaw/0.1)", () => {
+describe("conformance vectors (poaw/0.1 and poaw/0.2)", () => {
   for (const vector of manifest.vectors) {
     it(`${vector.file}: ${vector.description}`, async () => {
       const receiptText = readFileSync(join(vectorsDir, vector.file), "utf-8");
-      const report = await verifyReceipt(receiptText, { keys });
+      const pipeline = vector.pipeline
+        ? JSON.parse(readFileSync(join(vectorsDir, vector.pipeline), "utf-8"))
+        : undefined;
+      const report = await verifyReceipt(receiptText, { keys, pipeline });
       expect(report).toEqual(vector.expected);
     });
   }
+
+  it("runs all 35 vectors", () => {
+    expect(manifest.vectors).toHaveLength(35);
+  });
+});
+
+describe("pipelineDigest and change entries", () => {
+  const read = (f: string) => JSON.parse(readFileSync(join(vectorsDir, f), "utf-8"));
+
+  it("pipelineDigest of the example pipeline equals the policy digest in vector 022", () => {
+    const policy = read("022-valid-policy-checked.json").body.policy;
+    expect(pipelineDigest(read("pipeline.example.json"))).toBe(policy.digest);
+  });
+
+  it("pipelineDigest ignores key order", () => {
+    const p = read("pipeline.example.json") as Record<string, unknown>;
+    const reversed = Object.fromEntries(Object.entries(p).reverse());
+    expect(Object.keys(reversed)[0]).not.toBe(Object.keys(p)[0]);
+    expect(pipelineDigest(reversed)).toBe(pipelineDigest(p));
+  });
+
+  it("vector 027 verifies as a change entry with a null verdict", async () => {
+    const report = await verifyReceipt(read("027-valid-change.json"), { keys, pipeline: read("pipeline.example.json") });
+    expect(report.entry_kind).toBe("change");
+    expect(report.verdict).toBeNull();
+    expect(report.valid).toBe(true);
+    expect(report.checks).not.toHaveProperty("claim_digest");
+  });
+
+  it("a policy is reported not_checked without a pipeline document", async () => {
+    const report = await verifyReceipt(read("022-valid-policy-checked.json"), { keys });
+    expect(report.checks.policy).toBe("not_checked");
+    expect(report.valid).toBe(true);
+  });
 });

@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { validate as standalone } from "../src/generated/receipt-validator.js";
+import { validate as standaloneChange } from "../src/generated/change-validator.js";
+import { validate as standalonePipeline } from "../src/generated/pipeline-validator.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const vectorsDir = join(here, "..", "..", "..", "test", "vectors");
@@ -78,5 +80,45 @@ describe("under a CSP without 'unsafe-eval'", () => {
     const report = await verifyReceipt(text, { keys });
     expect(report.checks.schema).toBe(true);
     expect(report.valid).toBe(true);
+  });
+});
+
+describe("standalone change and pipeline validators", () => {
+  const compileRuntime = (name: string) =>
+    new Ajv2020({ allErrors: false, strict: false }).compile(
+      JSON.parse(readFileSync(join(here, "..", "..", "..", "src", `${name}.schema.json`), "utf-8")),
+    );
+  const runtimeChange = compileRuntime("change");
+  const runtimePipeline = compileRuntime("pipeline");
+  const read = (f: string) => JSON.parse(readFileSync(join(vectorsDir, f), "utf-8"));
+
+  it("agree with runtime-compiled validators on every vector, the example pipeline and their mutations", () => {
+    const pipeline = read("pipeline.example.json");
+    const pipelineMutations = [
+      pipeline,
+      { ...pipeline, id: "X" },
+      { ...pipeline, extra: 1 },
+      { ...pipeline, version: "1" },
+      { ...pipeline, outcomes: { ...pipeline.outcomes, alerts: [pipeline.outcomes.alerts[0], pipeline.outcomes.alerts[0]] } },
+      null,
+      [],
+      "a string",
+    ];
+    for (const m of pipelineMutations) expect(Boolean(standalonePipeline(m))).toBe(Boolean(runtimePipeline(m)));
+    expect(standalonePipeline(pipeline)).toBe(true);
+    for (const v of manifest.vectors) {
+      for (const m of mutations(read(v.file))) {
+        expect(Boolean(standaloneChange(m)), v.file).toBe(Boolean(runtimeChange(m)));
+      }
+    }
+    expect(standaloneChange(read("027-valid-change.json"))).toBe(true);
+  });
+
+  it("the generated modules evaluate no code and require no runtime module", () => {
+    for (const n of ["change", "pipeline"]) {
+      const src = readFileSync(join(here, "..", "src", "generated", `${n}-validator.js`), "utf-8");
+      expect(src).not.toMatch(/new Function|\bFunction\(|\beval\(/);
+      expect(src).not.toMatch(/\brequire\(/);
+    }
   });
 });

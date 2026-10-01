@@ -104,7 +104,7 @@ async function main(argv: string[]): Promise<number> {
     case "verify": {
       const [file, ...flagArgs] = rest;
       if (!file) {
-        defaultIo.error("usage: qed verify <file|https-url> [--keys file|url] [--rpc url] [--json]");
+        defaultIo.error("usage: qed verify <file|https-url> [--keys file|url] [--rpc url] [--pipeline file] [--json]");
         return 1;
       }
       const { values } = parseArgs({
@@ -112,10 +112,20 @@ async function main(argv: string[]): Promise<number> {
         options: {
           keys: { type: "string" },
           rpc: { type: "string" },
+          pipeline: { type: "string" },
           json: { type: "boolean" },
         },
       });
-      return verify({ file, keys: values.keys as string | undefined, rpc: values.rpc as string | undefined, json: values.json as boolean | undefined }, defaultIo);
+      return verify(
+        {
+          file,
+          keys: values.keys as string | undefined,
+          rpc: values.rpc as string | undefined,
+          pipeline: values.pipeline as string | undefined,
+          json: values.json as boolean | undefined,
+        },
+        defaultIo,
+      );
     }
     default:
       defaultIo.error("qed: commands are login, logout, claim, claims list, receipts get, watch, verify");

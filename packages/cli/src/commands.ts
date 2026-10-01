@@ -203,17 +203,24 @@ async function loadKeys(source: string | undefined): Promise<unknown> {
   return JSON.parse(readFileSync(source, "utf-8"));
 }
 
-export async function verify(args: { file: string; keys?: string; rpc?: string; json?: boolean }, io: Io): Promise<number> {
+export async function verify(
+  args: { file: string; keys?: string; rpc?: string; pipeline?: string; json?: boolean },
+  io: Io,
+): Promise<number> {
   const receiptText = await loadReceiptText(args.file);
   const keys = (await loadKeys(args.keys)) as Parameters<typeof verifyReceipt>[1]["keys"];
-  const report = await verifyReceipt(receiptText, { keys, rpcUrl: args.rpc });
+  // The pipeline document lets the checker confirm the entry's `policy` (SPEC §15.2). Without it, policy is "not_checked".
+  const pipeline = args.pipeline ? JSON.parse(readFileSync(args.pipeline, "utf-8")) : undefined;
+  const report = await verifyReceipt(receiptText, { keys, rpcUrl: args.rpc, pipeline });
 
   if (args.json) {
     io.log(JSON.stringify(report, null, 2));
   } else {
+    if (report.entry_kind) io.log(`kind:       ${report.entry_kind} entry (an unclaimed change, not a receipt)`);
     io.log(`signature:  ${report.checks.signature}`);
     io.log(`inclusion:  ${report.checks.inclusion}`);
     io.log(`anchor:     ${report.checks.anchor}`);
+    if (report.checks.policy !== undefined) io.log(`policy:     ${report.checks.policy}`);
     io.log(`verdict:    ${report.verdict ?? "-"}`);
     io.log(`valid:      ${report.valid}`);
     io.log(`trust level achieved: ${report.achieved_trust_level}`);

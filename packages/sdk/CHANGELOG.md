@@ -4,6 +4,22 @@ All notable changes to `@qed-proof/sdk` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-01
+
+### Added
+
+- `verifyReceipt` verifies **change entries** (`entry_kind: "change"`, SPEC §14): signed log entries for a change at a
+  destination that no claim explained. They are signed under their own domain, so a signature on a change entry never
+  verifies as a receipt, or the other way round. The report has `entry_kind: "change"`, no verdict and no `claim_digest`.
+- `verifyReceipt(receipt, { keys, pipeline })`: pass the pipeline document to check a receipt's or change entry's `policy`
+  (SPEC §15.2). The report gains `checks.policy`: `true`, `false`, or `"not_checked"` when no document is given. A failed
+  policy check makes the entry invalid.
+- `pipelineDigest(pipeline)`, `entryKind(body)`, `CHANGE_SIG_DOMAIN` and types for change entries and pipeline documents.
+
+### Changed
+
+- Accepts `poaw/0.1` and `poaw/0.2` receipts. Reports for receipts that use nothing new are unchanged.
+
 ## [0.1.6] - 2026-10-01
 
 ### Changed

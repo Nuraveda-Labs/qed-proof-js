@@ -4,35 +4,10 @@
  * ../../../src/receipt.schema.json (the vendored PoAW receipt schema). Do not edit by hand.
  */
 
-export type Timestamp = string;
-export type KeyId = string;
-export type Action = string;
-export type B64Url = string;
-export type Fingerprint = string;
-export type VerdictValue = "verified" | "late" | "mismatch" | "failed" | "unverifiable";
-export type ReasonCode =
-  | "not_found"
-  | "content_mismatch"
-  | "target_mismatch"
-  | "observed_after_tolerance"
-  | "no_connection"
-  | "permission_denied"
-  | "rate_limited"
-  | "destination_unavailable"
-  | "unsupported_action"
-  | "claim_ambiguous"
-  | "verifier_error";
-
-/**
- * Structural schema for a Proof of Agent Work receipt. Signature, inclusion and anchor checks are defined in SPEC.md and are not expressible in JSON Schema.
- */
-export interface PoAWReceiptPoaw01 {
-  body: Body;
-  signature: Signature;
-  proof?: Proof;
-}
-export interface Body {
-  spec_version: "poaw/0.1";
+export type Body = {
+  [k: string]: unknown;
+} & {
+  spec_version: "poaw/0.1" | "poaw/0.2";
   receipt_id: string;
   issued_at: Timestamp;
   issuer: {
@@ -77,6 +52,39 @@ export interface Body {
     document: B64Url;
   };
   supersedes?: string;
+  policy?: Policy;
+};
+export type Timestamp = string;
+export type KeyId = string;
+export type Action = string;
+export type B64Url = string;
+export type Fingerprint = string;
+export type VerdictValue = "verified" | "late" | "mismatch" | "failed" | "unverifiable";
+export type ReasonCode =
+  | "not_found"
+  | "content_mismatch"
+  | "target_mismatch"
+  | "observed_after_tolerance"
+  | "no_connection"
+  | "permission_denied"
+  | "rate_limited"
+  | "destination_unavailable"
+  | "unsupported_action"
+  | "claim_ambiguous"
+  | "verifier_error";
+
+/**
+ * Structural schema for a Proof of Agent Work receipt. Signature, inclusion and anchor checks are defined in SPEC.md and are not expressible in JSON Schema.
+ */
+export interface PoAWReceiptPoaw01AndPoaw02 {
+  body: Body;
+  signature: Signature;
+  proof?: Proof;
+}
+export interface Policy {
+  pipeline_id: string;
+  pipeline_version: number;
+  digest: string;
 }
 export interface Signature {
   alg: "Ed25519";

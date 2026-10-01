@@ -5,7 +5,11 @@
  */
 import {
   b64uDecode,
+  CHANGE_SIG_DOMAIN,
+  SIG_DOMAIN,
   claimDigest,
+  entryKind,
+  pipelineDigest,
   hasFloatValue,
   hasFloatText,
   keyId,
@@ -14,7 +18,7 @@ import {
   verifySignature,
   b64u,
 } from "./primitives.js";
-import { schemaValid } from "./schema.js";
+import { changeSchemaValid, pipelineSchemaValid, schemaValid } from "./schema.js";
 import { checkAnchor, type Keyset, type Proof } from "./anchor.js";
 
 export interface VerifyChecks {
@@ -23,9 +27,12 @@ export interface VerifyChecks {
   integers_only: boolean;
   key: boolean;
   signature: boolean;
-  claim_digest: boolean;
+  /** Absent on a change entry (§14.1: it has no claim). */
+  claim_digest?: boolean;
   inclusion: boolean | "absent";
   anchor: boolean | "absent" | "not_checked_offline" | string;
+  /** Present only when the body carries a `policy` (§15.2). "not_checked" when no pipeline document was given. */
+  policy?: boolean | "not_checked";
 }
 
 export interface VerifyReport {
@@ -34,11 +41,32 @@ export interface VerifyReport {
   verdict: string | null;
   achieved_trust_level: number;
   proven_by?: number | null;
+  /** "change" for a change entry (§14); absent for a receipt. */
+  entry_kind?: "change";
 }
 
 export interface VerifyOptions {
   keys: Keyset;
   rpcUrl?: string;
+  /** The pipeline document the entry's `policy` points at (§15.2). Without it, `checks.policy` is "not_checked". */
+  pipeline?: unknown;
+}
+
+/** SPEC §15.2: the document is valid, its id and version are the policy's, and its digest is the policy's. */
+function checkPolicy(policy: Record<string, unknown>, pipeline: unknown): boolean {
+  if (pipeline === null || typeof pipeline !== "object" || Array.isArray(pipeline)) return false;
+  const p = pipeline as Record<string, unknown>;
+  try {
+    return (
+      !hasFloatValue(pipeline) &&
+      pipelineSchemaValid(pipeline) &&
+      p.id === policy.pipeline_id &&
+      p.version === policy.pipeline_version &&
+      pipelineDigest(pipeline) === policy.digest
+    );
+  } catch {
+    return false;
+  }
 }
 
 interface ReceiptLike {
@@ -74,7 +102,10 @@ export async function verifyReceipt(receipt: unknown | string, options: VerifyOp
   const parts = version.split("/");
   checks.spec_version = parts[0] === "poaw" && (parts[parts.length - 1] ?? "").split(".")[0] === "0";
 
-  checks.schema = schemaValid(parsed);
+  // §14: no entry_kind is a receipt, "change" is a change entry, anything else is not an entry this spec defines.
+  const kind = entryKind(body);
+  const isChange = kind === "change";
+  checks.schema = (kind === undefined || isChange) && (isChange ? changeSchemaValid(parsed) : schemaValid(parsed));
 
   const integerFail = raw !== undefined ? hasFloatText(raw) : hasFloatValue(parsed);
   checks.integers_only = !integerFail;
@@ -102,18 +133,20 @@ export async function verifyReceipt(receipt: unknown | string, options: VerifyOp
   let sigOk = false;
   if (keyOk && key) {
     try {
-      sigOk = verifySignature(b64uDecode(key.public_key), body, sig?.value ?? "");
+      sigOk = verifySignature(b64uDecode(key.public_key), body, sig?.value ?? "", isChange ? CHANGE_SIG_DOMAIN : SIG_DOMAIN);
     } catch {
       sigOk = false;
     }
   }
   checks.signature = sigOk;
 
-  const claim = (body as Record<string, unknown>).claim;
-  checks.claim_digest =
-    Boolean(claim) &&
-    typeof claim === "object" &&
-    (claim as Record<string, unknown>).claim_digest === claimDigest(claim as Record<string, unknown>);
+  if (!isChange) {
+    const claim = (body as Record<string, unknown>).claim;
+    checks.claim_digest =
+      Boolean(claim) &&
+      typeof claim === "object" &&
+      (claim as Record<string, unknown>).claim_digest === claimDigest(claim as Record<string, unknown>);
+  }
 
   const proof = parsed && typeof parsed === "object" ? parsed.proof : undefined;
   let provenBy: number | null | undefined;
@@ -139,19 +172,25 @@ export async function verifyReceipt(receipt: unknown | string, options: VerifyOp
     provenBy = a.proven_by;
   }
 
-  const required: Array<keyof VerifyChecks> = [
-    "spec_version",
-    "schema",
-    "integers_only",
-    "key",
-    "signature",
-    "claim_digest",
-  ];
-  const valid = required.every((k) => checks[k] === true) && (checks.inclusion === true || checks.inclusion === "absent");
+  // §15.2: only present when the body carries a policy. Without the pipeline document it is "not_checked".
+  const policy = (body as Record<string, unknown>).policy;
+  if (policy !== undefined && policy !== null) {
+    checks.policy =
+      options.pipeline === undefined || options.pipeline === null
+        ? "not_checked"
+        : typeof policy === "object" && !Array.isArray(policy) && checkPolicy(policy as Record<string, unknown>, options.pipeline);
+  }
+
+  const required: Array<keyof VerifyChecks> = ["spec_version", "schema", "integers_only", "key", "signature"];
+  if (!isChange) required.push("claim_digest");
+  const valid =
+    required.every((k) => checks[k] === true) &&
+    (checks.inclusion === true || checks.inclusion === "absent") &&
+    (checks.policy === undefined || checks.policy === true || checks.policy === "not_checked");
 
   const achievedTrustLevel = valid ? (checks.inclusion === true && checks.anchor === true ? 2 : 1) : 0;
   const verdictValue = (body as Record<string, unknown>).verdict as { value?: string } | undefined;
-  const verdict = valid ? (verdictValue?.value ?? null) : null;
+  const verdict = valid && !isChange ? (verdictValue?.value ?? null) : null;
 
   const report: VerifyReport = {
     checks,
@@ -159,6 +198,9 @@ export async function verifyReceipt(receipt: unknown | string, options: VerifyOp
     verdict: verdict ?? null,
     achieved_trust_level: achievedTrustLevel,
   };
+  if (isChange) {
+    report.entry_kind = "change";
+  }
   if (provenBy !== undefined) {
     report.proven_by = provenBy;
   }

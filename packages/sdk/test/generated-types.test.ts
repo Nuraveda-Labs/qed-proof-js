@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { generate } from "../scripts/gen-types.mjs";
+import { generate, generateFor } from "../scripts/gen-types.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const committedPath = join(here, "..", "src", "generated", "receipt.ts");
@@ -17,4 +17,12 @@ describe("generated receipt types", () => {
     const committed = readFileSync(committedPath, "utf-8");
     expect(fresh).toEqual(committed);
   });
+});
+
+describe("generated change and pipeline types", () => {
+  for (const name of ["change", "pipeline"]) {
+    it(`${name}.ts matches a fresh regeneration from src/${name}.schema.json`, async () => {
+      expect(await generateFor(name)).toEqual(readFileSync(join(here, "..", "src", "generated", `${name}.ts`), "utf-8"));
+    });
+  }
 });

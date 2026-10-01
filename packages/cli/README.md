@@ -20,7 +20,7 @@ qed claims list [--limit N] [--agent ID] [--action A] [--verdict V] [--state S] 
 qed receipts get <id> [--json]
 qed watch <claim-id> [--json]
 
-qed verify <file|https-url> [--keys file|url] [--rpc url] [--json]   # offline check, exit 1 if not valid
+qed verify <file|https-url> [--keys file|url] [--rpc url] [--pipeline file] [--json]   # offline check, exit 1 if not valid
 ```
 
 `QED_PROOF_API_KEY` and `QED_PROOF_BASE_URL` env vars override the saved config.

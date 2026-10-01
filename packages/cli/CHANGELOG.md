@@ -4,6 +4,14 @@ All notable changes to `@qed-proof/cli` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-10-01
+
+### Added
+
+- `qed verify` prints what an entry is (a receipt, or a change entry for an unclaimed change) and its `policy` result.
+- `qed verify <file> --pipeline <file>` checks the entry's policy against the pipeline document.
+- Needs `@qed-proof/sdk` 0.2.0.
+
 ## [0.1.6] - 2026-10-01
 
 ### Changed

@@ -4,8 +4,8 @@
  */
 export const receiptSchema = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:poaw:schema:0.1:receipt",
-  "title": "PoAW receipt (poaw/0.1)",
+  "$id": "urn:poaw:schema:0.2:receipt",
+  "title": "PoAW receipt (poaw/0.1 and poaw/0.2)",
   "description": "Structural schema for a Proof of Agent Work receipt. Signature, inclusion and anchor checks are defined in SPEC.md and are not expressible in JSON Schema.",
   "type": "object",
   "required": [
@@ -44,6 +44,29 @@ export const receiptSchema = {
     "action": {
       "type": "string",
       "pattern": "^[a-z0-9]+(\\.[a-z0-9_]+){2}$"
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "pipeline_id",
+        "pipeline_version",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pipeline_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{2,63}$"
+        },
+        "pipeline_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{43}$"
+        }
+      }
     },
     "verdictValue": {
       "enum": [
@@ -84,7 +107,10 @@ export const receiptSchema = {
       ],
       "properties": {
         "spec_version": {
-          "const": "poaw/0.1"
+          "enum": [
+            "poaw/0.1",
+            "poaw/0.2"
+          ]
         },
         "receipt_id": {
           "type": "string",
@@ -272,33 +298,54 @@ export const receiptSchema = {
         },
         "supersedes": {
           "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/policy"
         }
       },
-      "if": {
-        "properties": {
-          "trust_level": {
-            "minimum": 3
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "attestation"
-        ],
-        "properties": {
-          "observation": {
+      "allOf": [
+        {
+          "if": {
             "properties": {
-              "verifier": {
-                "required": [
-                  "id",
-                  "version",
-                  "code_hash"
-                ]
+              "trust_level": {
+                "minimum": 3
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "attestation"
+            ],
+            "properties": {
+              "observation": {
+                "properties": {
+                  "verifier": {
+                    "required": [
+                      "id",
+                      "version",
+                      "code_hash"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "policy"
+            ]
+          },
+          "then": {
+            "properties": {
+              "spec_version": {
+                "const": "poaw/0.2"
               }
             }
           }
         }
-      }
+      ]
     },
     "signature": {
       "type": "object",
